@@ -1,0 +1,162 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TrendRadar 助理</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #fff7fb;
+      color: #3f2f3f;
+    }
+    .wrap {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px 16px 28px;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #f0d7e6;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #a13c6f;
+    }
+    .hint {
+      font-size: 13px;
+      color: #7b6679;
+      line-height: 1.5;
+    }
+    textarea, input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #e8cddc;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      outline: none;
+      background: #fffdfd;
+    }
+    textarea {
+      min-height: 96px;
+      resize: vertical;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 180px 180px;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .btn {
+      border: 1px solid #eb9fc1;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #ffd8eb 0%, #ffcce4 100%);
+      color: #8f3561;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+    .result-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #8f3561;
+    }
+    pre {
+      margin: 0;
+      background: #fff8fc;
+      border: 1px solid #f0d7e6;
+      border-radius: 10px;
+      padding: 10px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      line-height: 1.5;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="title">TrendRadar 助理聊天</div>
+      <div class="hint">统一入口，后端自动路由到学习/投资/认知助理，并自动写入长期记忆。</div>
+      <textarea id="query" placeholder="输入你的问题..."></textarea>
+      <div class="row">
+        <input id="userId" placeholder="user_id（默认 default）" value="default" />
+        <input id="role" placeholder="role（固定 auto）" value="auto" />
+        <button class="btn" id="sendBtn" onclick="askAssistant()">发送</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="result-title">回答</div>
+      <pre id="answer">等待提问...</pre>
+    </div>
+
+    <div class="card">
+      <div class="result-title">路由与记忆写回</div>
+      <pre id="meta">{}</pre>
+    </div>
+  </div>
+
+  <script>
+    async function askAssistant() {
+      const btn = document.getElementById('sendBtn');
+      const query = document.getElementById('query').value.trim();
+      const userId = document.getElementById('userId').value.trim() || 'default';
+      const role = document.getElementById('role').value.trim() || 'auto';
+      if (!query) {
+        alert('请输入问题');
+        return;
+      }
+      btn.disabled = true;
+      const answerEl = document.getElementById('answer');
+      const metaEl = document.getElementById('meta');
+      answerEl.textContent = '思考中...';
+      metaEl.textContent = '...';
+      try {
+        const res = await fetch('/api/assistant/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query,
+            user_id: userId,
+            role,
+            use_llm: true,
+            enable_memory_writeback: true
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          answerEl.textContent = '[请求失败] ' + (data.error || 'unknown');
+          metaEl.textContent = JSON.stringify(data, null, 2);
+          return;
+        }
+        answerEl.textContent = data.answer || '';
+        metaEl.textContent = JSON.stringify({
+          route: data.route,
+          memory_writeback: data.memory_writeback
+        }, null, 2);
+      } catch (e) {
+        answerEl.textContent = '[请求异常] ' + String(e);
+        metaEl.textContent = '{}';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
+
